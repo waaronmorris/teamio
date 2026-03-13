@@ -2,6 +2,14 @@
 
 This directory contains Docker Compose configuration to run the complete TeamIO stack locally.
 
+## Related Repositories
+
+| Repository | Description |
+|------------|-------------|
+| [teamio](https://github.com/waaronmorris/teamio) | Infrastructure, Docker Compose, and development setup (this repo) |
+| [teamio-backend](https://github.com/waaronmorris/teamio-backend) | Rust/Axum backend API with SeaORM |
+| [league-hub](https://github.com/waaronmorris/league-hub) | React/Vite frontend (Lovable-generated) |
+
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) (v20.10+)
@@ -11,9 +19,9 @@ This directory contains Docker Compose configuration to run the complete TeamIO 
 
 | Service | Description | Port |
 |---------|-------------|------|
-| `db` | PostgreSQL 16 database | 5432 |
+| `db` | PostgreSQL 16 database | 5434 |
 | `backend` | Rust/Axum API server | 8082 |
-| `frontend` | React/Vite dev server | 3000 |
+| `frontend` | React/Vite dev server | 3003 |
 | `pgadmin` | Database admin UI (optional) | 5050 |
 
 ## Quick Start
@@ -39,10 +47,10 @@ docker compose up
 
 ### 3. Access the Application
 
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:3003
 - **Backend API**: http://localhost:8082/api
 - **Swagger UI**: http://localhost:8082/swagger-ui
-- **Health Check**: http://localhost:8082/health
+- **Health Check**: http://localhost:8082/api/health
 
 ### 4. Run Database Migrations
 
@@ -117,7 +125,7 @@ docker compose up -d db
 
 # Run backend locally
 cd ../backend
-DATABASE_URL=postgres://teamio:teamio_dev_password@localhost:5432/teamio cargo run
+DATABASE_URL=postgres://teamio:teamio_dev_password@localhost:5434/teamio cargo run
 ```
 
 ### Frontend Development
@@ -183,12 +191,12 @@ docker compose up -d --build
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │  Frontend   │  │   Backend   │  │     PostgreSQL      │  │
 │  │  (React)    │──│   (Rust)    │──│     Database        │  │
-│  │  :3000      │  │   :8082     │  │     :5432           │  │
+│  │  :3003      │  │   :8082     │  │     :5434           │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
          │                  │
          ▼                  ▼
-   http://localhost:3000  http://localhost:8082/api
+   http://localhost:3003  http://localhost:8082/api
 ```
 
 ## Environment Variables
