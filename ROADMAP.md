@@ -19,6 +19,11 @@ The core features of the TeamIO sports league management platform are implemente
 | Registrations | ✅ | ✅ | Registration workflow |
 | Schedule/Events | ✅ | ✅ | Game and practice scheduling |
 | Dashboard Navigation | - | ✅ | Sidebar and breadcrumbs |
+| Settings | ✅ | ✅ | Persistent user preferences |
+| Registration Forms | ✅ | ✅ | Configurable form builder + templates |
+| User Invites | ✅ | ✅ | Email invitations with token-based flow |
+| Game Scoring | ✅ | ✅ | Score entry, standings calculations |
+| Reports & Analytics | ✅ | ✅ | Standings, results, event/registration stats |
 
 ---
 
