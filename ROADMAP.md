@@ -43,6 +43,10 @@ The core features of the TeamIO sports league management platform are implemente
 | Coach Portal | ✅ | ✅ | Team roster, events, results, certification info |
 | Parent Portal | ✅ | ✅ | Player management, registrations, payments, waivers |
 | Role-Based Sidebar | - | ✅ | Coach/Parent/Admin sections based on user role |
+| RSVP/Availability | ✅ | ✅ | Parents RSVP yes/no/maybe for events |
+| Volunteer Duties | ✅ | ✅ | Snack duty, scorekeeper, field setup assignments |
+| Attendance Tracking | ✅ | ✅ | Coaches mark present/absent/late/excused |
+| Event Detail Page | ✅ | ✅ | Full event view with RSVP, duties, attendance tabs |
 | Global Search | - | ✅ | Cmd+K search across users, seasons, events |
 | Print Views | - | ✅ | Print-friendly output for reports and rosters |
 | Testing | - | ✅ | 32 tests across 6 test files |
