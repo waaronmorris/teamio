@@ -47,6 +47,9 @@ The core features of the TeamIO sports league management platform are implemente
 | Volunteer Duties | ✅ | ✅ | Snack duty, scorekeeper, field setup assignments |
 | Attendance Tracking | ✅ | ✅ | Coaches mark present/absent/late/excused |
 | Event Detail Page | ✅ | ✅ | Full event view with RSVP, duties, attendance tabs |
+| Game Day Mode | ✅ | ✅ | Mobile-friendly timer, one-tap attendance, score |
+| Weather Broadcasts | ✅ | ✅ | Emergency cancellations and schedule change alerts |
+| Map Directions | ✅ | ✅ | Google Maps links from field locations |
 | Global Search | - | ✅ | Cmd+K search across users, seasons, events |
 | Print Views | - | ✅ | Print-friendly output for reports and rosters |
 | Testing | - | ✅ | 32 tests across 6 test files |
