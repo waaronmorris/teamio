@@ -40,6 +40,9 @@ The core features of the TeamIO sports league management platform are implemente
 | Season Management | ✅ | ✅ | Season list, status filtering, stats cards |
 | API Documentation | ✅ | - | Swagger UI at /swagger-ui with OpenAPI spec |
 | Payment Processing | ✅ | ✅ | Abstract provider: Stripe, PayPal, Square, Manual/Cash |
+| Coach Portal | ✅ | ✅ | Team roster, events, results, certification info |
+| Parent Portal | ✅ | ✅ | Player management, registrations, payments, waivers |
+| Role-Based Sidebar | - | ✅ | Coach/Parent/Admin sections based on user role |
 
 ---
 
