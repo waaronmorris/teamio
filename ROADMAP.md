@@ -34,6 +34,8 @@ The core features of the TeamIO sports league management platform are implemente
 | PWA Support | - | ✅ | Web manifest, service worker, installable app |
 | Dark Mode | - | ✅ | Light/dark/system theme from user settings |
 | Dashboard Home | ✅ | ✅ | Live stats, standings, quick actions (no mock data) |
+| User Profile | ✅ | ✅ | Edit info, change password, account details |
+| Photo Gallery | ✅ | ✅ | Upload, grid view, album filtering, cloud storage abstraction |
 
 ---
 
@@ -221,7 +223,7 @@ Add automated tests for reliability.
 
 - **Multi-organization support** - Allow multiple leagues/organizations
 - **Payment processing** - Stripe/PayPal integration for registration fees
-- **Photo galleries** - Team and game photos
+- ~~Photo galleries~~ - Done (abstract storage: local, S3, GCS, Azure)
 - **API documentation** - OpenAPI/Swagger docs
 - **Dark mode** - Full dark theme support
 - **Dashboard home improvements** - Recent activity feed, quick actions
