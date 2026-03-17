@@ -43,6 +43,9 @@ The core features of the TeamIO sports league management platform are implemente
 | Coach Portal | ✅ | ✅ | Team roster, events, results, certification info |
 | Parent Portal | ✅ | ✅ | Player management, registrations, payments, waivers |
 | Role-Based Sidebar | - | ✅ | Coach/Parent/Admin sections based on user role |
+| Global Search | - | ✅ | Cmd+K search across users, seasons, events |
+| Print Views | - | ✅ | Print-friendly output for reports and rosters |
+| Testing | - | ✅ | 32 tests across 6 test files |
 
 ---
 
