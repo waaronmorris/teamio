@@ -53,179 +53,114 @@ The core features of the TeamIO sports league management platform are implemente
 | Map Directions | ✅ | ✅ | Google Maps links from field locations |
 | Global Search | - | ✅ | Cmd+K search across users, seasons, events |
 | Print Views | - | ✅ | Print-friendly output for reports and rosters |
-| Testing | - | ✅ | 32 tests across 6 test files |
+| Multi-Tenant Isolation | ✅ | ✅ | Subdomain routing, OrgContext middleware, org-scoped queries |
+| Inter-League Events | ✅ | ✅ | External org linking with search + manual fallback |
+| Extended Event Types | ✅ | ✅ | Team meetings, parent meetings, parties, fundraisers |
+| Parent Event Creation | ✅ | ✅ | Parents can create social events for their child's team |
+| Tournament Brackets | ✅ | ✅ | Single elimination with seeding, byes, auto-advancement |
+| Public Org Pages | ✅ | ✅ | Public landing page at org subdomain with schedule/registration |
+| CI/CD Pipeline | ✅ | - | GitHub Actions for tests, lint, Docker image builds |
+| Email Notifications | ✅ | - | SMTP queue with templates, auto-reminders, background worker |
+| Season Cloning | ✅ | - | Clone season structure (teams, divisions, forms) for new year |
+| Stripe Connect | ✅ | ✅ | Managed payments with 2% platform fee, Express onboarding |
+| Stripe-Backed Pricing | ✅ | ✅ | Dynamic pricing from Stripe, 30-min cache, fallback defaults |
+| Field Rental Invoicing | ✅ | ✅ | Generate/send/void invoices via Stripe Invoice API |
+| Auto Rental Charges | ✅ | - | Auto-create charges when events booked with fee schedules |
+| Payment → Registration Sync | ✅ | - | Auto-update registration payment_status on payment completion |
+| Dispute/Chargeback Handling | ✅ | - | Webhook for disputes, admin email notifications, status tracking |
+| System Admin Portal | ✅ | ✅ | Full operational dashboard (see below) |
 
 ---
 
-## Next Steps
+## System Admin Portal (Complete)
 
-### 1. Settings Functionality
-**Priority:** Medium
-**Complexity:** Low
+Internal admin portal at `/system-admin` for `@getteamio.com` users only.
 
-Currently the Settings page has UI but no backend persistence.
+### Phase 1: Organization Management & Promo Codes ✅
 
-**Tasks:**
-- [ ] Create settings API endpoint (`GET/PUT /users/:id/settings`)
-- [ ] Create user_settings table in database
-- [ ] Implement theme switching (light/dark/system)
-- [ ] Save notification preferences to backend
-- [ ] Persist timezone preference per user
+| Feature | Backend | Frontend | Notes |
+|---------|:-------:|:--------:|-------|
+| System admin route guard | ✅ | ✅ | Only `@getteamio.com` users with `admin` role |
+| Organization list | ✅ | ✅ | Search, filter by plan/status, pagination |
+| Org detail view | ✅ | ✅ | Members, activity stats, plan/trial override |
+| Manual plan override | ✅ | ✅ | Upgrade/downgrade any org, bypass Stripe |
+| Impersonate org dashboard | ✅ | ✅ | View any org's dashboard via ?admin_view |
+| Promo code CRUD | ✅ | ✅ | %, fixed $, free months, trial extension |
+| Promo code redemption history | ✅ | ✅ | View redemptions per code |
+| Email queue dashboard | ✅ | ✅ | Stats, failed emails table, per-row retry |
 
-**Files to modify:**
-- `backend/src/handlers/` - Add settings handler
-- `backend/src/services/` - Add settings service
-- `frontend-lovable/src/pages/Settings.tsx` - Connect to API
+### Phase 2: User Management & Analytics ✅
 
----
+| Feature | Backend | Frontend | Notes |
+|---------|:-------:|:--------:|-------|
+| User list (cross-org) | ✅ | ✅ | Search by name/email, filter by role |
+| Password reset on behalf | ✅ | ✅ | Generates temp password, emails user |
+| Email verification override | ✅ | ✅ | Mark user verified without email |
+| Revenue dashboard | ✅ | ✅ | MRR from Stripe, plan distribution donut |
+| Signup funnel | ✅ | ✅ | Registered → Active → League → Events → Paid |
+| Signups trend chart | ✅ | ✅ | 30-day line chart with recharts |
 
-### 2. Player Registration Flow
-**Priority:** High
-**Complexity:** Medium
+### Phase 3: Communication & System Health ✅
 
-Allow guardians to register players for seasons through the parent portal.
-
-**Tasks:**
-- [ ] Create registration form for guardians
-- [ ] Add player profile creation during registration
-- [ ] Implement waiver/consent form workflow
-- [ ] Add payment integration placeholder
-- [ ] Email confirmation on registration
-- [ ] Admin approval workflow for registrations
-
-**Files to create:**
-- `frontend-lovable/src/pages/PlayerRegistration.tsx`
-- `frontend-lovable/src/components/registration/RegistrationForm.tsx`
-- `frontend-lovable/src/components/registration/WaiverForm.tsx`
+| Feature | Backend | Frontend | Notes |
+|---------|:-------:|:--------:|-------|
+| System announcements | ✅ | ✅ | Dismissible banners on all dashboards |
+| Broadcast email | ✅ | ✅ | Email org admins, filter by plan tier |
+| System health dashboard | ✅ | ✅ | Email queue, registrations, events, seasons |
+| Audit log viewer | ✅ | ✅ | Cross-org audit trail with action/resource filters |
+| Quick actions | - | ✅ | Promo codes, Stripe, Sentry links |
 
 ---
 
-### 3. Invite Users
-**Priority:** Medium
-**Complexity:** Low
+## Payment & Billing System
 
-Add ability to invite new users via email from User Management.
-
-**Tasks:**
-- [ ] Create invite endpoint (`POST /users/invite`)
-- [ ] Generate invite tokens with expiration
-- [ ] Send invitation email with signup link
-- [ ] Create invite acceptance page
-- [ ] Track pending invitations
-- [ ] Add "Invite User" button to User Management page
-
-**Backend changes:**
-- Add `user_invites` table
-- Add email sending service (SendGrid, AWS SES, etc.)
-
----
-
-### 4. Game Scoring
-**Priority:** High
-**Complexity:** Medium
-
-Enter and edit game scores, update team standings.
-
-**Tasks:**
-- [ ] Create score entry UI for completed games
-- [ ] Implement standings calculation service
-- [ ] Add standings view to league/division pages
-- [ ] Track wins, losses, ties, points for/against
-- [ ] Support different scoring formats (runs, goals, points)
-- [ ] Add game result history
-
-**Files to modify:**
-- `frontend-lovable/src/pages/DashboardSchedule.tsx` - Add score entry
-- `frontend-lovable/src/components/schedule/GameScoreCard.tsx` - Create new
-- `backend/src/services/stats.rs` - Standings calculations
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Manual/Cash payments | ✅ | Default provider, admin marks complete |
+| Stripe (BYOK) | ✅ | League provides own API key, direct payment intents |
+| TeamIO Managed Payments | ✅ | Stripe Connect Express, 2% platform fee |
+| Connect onboarding | ✅ | Hosted onboarding flow, webhook completion |
+| Field rental fee schedules | ✅ | Hourly/daily/flat/seasonal, light surcharge, non-resident markup |
+| Auto charge on booking | ✅ | Charges created when events booked with fields |
+| Invoice generation | ✅ | Bundle charges into invoices, draft → send → paid |
+| Stripe Invoice API | ✅ | Auto-send via Stripe, hosted payment page |
+| Invoice webhooks | ✅ | invoice.paid, invoice.payment_failed auto-sync |
+| Dispute handling | ✅ | charge.dispute.created/closed, admin email alerts |
+| Registration payment sync | ✅ | Auto-update payment_status on completion |
+| PayPal | ⚠️ | Placeholder — needs REST SDK integration |
+| Square | ⚠️ | Placeholder — needs SDK integration |
 
 ---
 
-### 5. Notifications System
-**Priority:** Medium
-**Complexity:** High
+## Multi-Tenant Organization Isolation (Implemented)
 
-Email and in-app notifications for important events.
+Subdomain-based multi-tenancy with full org isolation:
 
-**Tasks:**
-- [ ] Set up email service provider integration
-- [ ] Create notification templates (schedule changes, draft picks, etc.)
-- [ ] Implement in-app notification center
-- [ ] Add notification preferences per user
-- [ ] Create notification queue/worker for async sending
-- [ ] Add push notification support (optional)
+| Layer | Implementation | Status |
+|-------|---------------|--------|
+| Org Slugs | `organizations.slug` column, auto-generated, unique | ✅ |
+| JWT Claims | `org_id` in token, set to primary org on login | ✅ |
+| TenantContext Middleware | `OrgContext` / `OptionalOrgContext` extractors | ✅ |
+| List Endpoint Isolation | All list endpoints filter by org (join-based for transitive resources) | ✅ |
+| GET-by-ID Isolation | All GET endpoints verify resource belongs to user's org (returns 404) | ✅ |
+| Mutation Isolation | All update/delete endpoints verify resource org before modifying | ✅ |
+| Org Resolution Methods | `get_team_org_id`, `get_player_org_id`, etc. on AuthorizationService | ✅ |
+| Performance Cache | DashMap-based in-memory cache (60s TTL) for org lookups + membership | ✅ |
+| Nginx Subdomain Routing | `*.getteamio.com` → `X-Org-Slug` header extraction | ✅ |
+| Frontend API Client | Auto-sends `X-Org-Id` or `X-Org-Slug` on every request | ✅ |
+| Subdomain Detection | `getOrgSlugFromHostname()` utility | ✅ |
+| OrgSwitcher | Redirects to new subdomain when switching orgs | ✅ |
+| Subdomain Guard | `ProtectedRoute` blocks access to wrong org, shows org links | ✅ |
+| CORS | Configurable via `CORS_ORIGIN` env var | ✅ |
+| Org Admin Permissions | Org admins can manage their own org (not just system admins) | ✅ |
+| Workflow Auth | All workflow handlers secured with RequireAdmin/RequireCoach | ✅ |
+| Cross-Org Tests | Integration test suite validating isolation | ✅ |
+| Inter-League Events | `external_organization_id` FK + org search + manual fallback | ✅ |
 
-**Notification types:**
-- Schedule changes (game time/location updates)
-- Draft notifications (your turn, pick made)
-- Registration confirmations
-- Team announcements
-- Practice reminders
-
----
-
-### 6. Reports & Analytics
-**Priority:** Low
-**Complexity:** Medium
-
-Dashboards for league stats and player statistics.
-
-**Tasks:**
-- [ ] Team standings leaderboard
-- [ ] Player statistics tracking (batting avg, goals, etc.)
-- [ ] Season summary reports
-- [ ] Registration analytics (signups over time)
-- [ ] Attendance tracking
-- [ ] Export reports to PDF/CSV
-
-**Pages to create:**
-- `frontend-lovable/src/pages/Reports.tsx`
-- `frontend-lovable/src/pages/PlayerStats.tsx`
-- `frontend-lovable/src/pages/SeasonSummary.tsx`
-
----
-
-### 7. Mobile Responsiveness
-**Priority:** Medium
-**Complexity:** Low
-
-Improve UI for mobile devices.
-
-**Tasks:**
-- [ ] Audit all pages for mobile layout issues
-- [ ] Fix table layouts for small screens (horizontal scroll or card view)
-- [ ] Improve touch targets for buttons/links
-- [ ] Test draft room on mobile
-- [ ] Add mobile-friendly navigation (hamburger menu)
-- [ ] Optimize images and assets for mobile
-
-**Focus areas:**
-- Dashboard sidebar (collapsible on mobile)
-- Data tables (responsive or card layout)
-- Draft room (simplified mobile view)
-- Forms (full-width inputs)
-
----
-
-### 8. Testing
-**Priority:** High
-**Complexity:** Medium
-
-Add automated tests for reliability.
-
-**Tasks:**
-- [ ] Set up testing framework for frontend (Vitest + React Testing Library)
-- [ ] Add unit tests for critical services
-- [ ] Add integration tests for API endpoints
-- [ ] Add E2E tests for key user flows (Playwright)
-- [ ] Set up CI/CD pipeline for automated testing
-- [ ] Add test coverage reporting
-
-**Key flows to test:**
-- User authentication (login, register, logout)
-- Draft lifecycle (create, setup, start, pick, complete)
-- Registration workflow
-- CRUD operations for leagues/teams/players
+### Deployment Requirements
+- Wildcard DNS: `*.getteamio.com` → application server
+- Wildcard SSL cert (Let's Encrypt or ACM)
+- Set `CORS_ORIGIN` env var in production (e.g., `https://*.getteamio.com`)
 
 ---
 
@@ -234,14 +169,19 @@ Add automated tests for reliability.
 - ~~CSS Warning~~ - Fixed (moved @import before @tailwind)
 - Browserslist Update - Run `npx update-browserslist-db@latest`
 - Type Improvements - Add stricter TypeScript types for API responses
+- Stripe Webhook Events - Register: `charge.dispute.created`, `charge.dispute.closed`, `invoice.paid`, `invoice.payment_failed`, `account.updated` in Stripe Dashboard
 
 ---
 
 ## Future Considerations
 
-- **Multi-organization support** - Allow multiple leagues/organizations
-- ~~Payment processing~~ - Done (abstract provider: Stripe, PayPal, Square, Manual)
+- ~~Multi-organization support~~ - Done (subdomain-based multi-tenancy with full isolation)
+- ~~Payment processing~~ - Done (Stripe BYOK + Managed with Connect)
 - ~~Photo galleries~~ - Done (abstract storage: local, S3, GCS, Azure)
 - ~~API documentation~~ - Done (Swagger UI at /swagger-ui)
-- **Dark mode** - Full dark theme support
-- **Dashboard home improvements** - Recent activity feed, quick actions
+- ~~Dark mode~~ - Done (Light/dark/system theme)
+- ~~Dashboard home improvements~~ - Done (stats, standings, quick actions)
+- **Feature flags** - Toggle features per org for gradual rollouts
+- **PayPal/Square** - Real SDK integrations for additional payment providers
+- **Sentry integration** - Error summary in system admin dashboard
+- **E2E test coverage** - Tests for system admin, payments, invoicing
