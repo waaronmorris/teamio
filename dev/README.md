@@ -8,7 +8,7 @@ This directory contains Docker Compose configuration to run the complete TeamIO 
 |------------|-------------|
 | [teamio](https://github.com/waaronmorris/teamio) | Infrastructure, Docker Compose, and development setup (this repo) |
 | [teamio-backend](https://github.com/waaronmorris/teamio-backend) | Rust/Axum backend API with SeaORM |
-| [league-hub](https://github.com/waaronmorris/league-hub) | React/Vite frontend (Lovable-generated) |
+| [league-hub](https://github.com/waaronmorris/league-hub) | React/Vite frontend |
 
 ## Prerequisites
 
@@ -137,7 +137,7 @@ The frontend container mounts the source code, so changes should hot-reload. For
 docker compose up -d db backend
 
 # Run frontend locally
-cd ../frontend-lovable
+cd ../frontend
 npm run dev
 ```
 

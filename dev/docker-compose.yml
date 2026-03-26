@@ -35,6 +35,8 @@ services:
       RUST_LOG: ${RUST_LOG:-info,teamio_backend=debug}
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 8080
+      # Multi-tenancy: allow all origins in dev (set to https://*.getteamio.com in production)
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "8082:8080"
     healthcheck:
@@ -44,23 +46,19 @@ services:
       retries: 3
       start_period: 30s
 
-  # Frontend (React/Vite)
+  # Frontend (React + Nginx)
   frontend:
     build:
-      context: ../frontend-lovable
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: teamio-frontend
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      VITE_API_URL: http://localhost:8082/api
     ports:
-      - "3003:3000"
+      - "3080:80"
     volumes:
-      # Mount source for hot reload in development
-      - ../frontend-lovable/src:/app/src:ro
-      - ../frontend-lovable/public:/app/public:ro
+      - uploads_data:/app/uploads
 
   # pgAdmin (optional - for database management)
   pgadmin:
@@ -83,6 +81,7 @@ services:
 volumes:
   postgres_data:
   pgadmin_data:
+  uploads_data:
 
 networks:
   default:
