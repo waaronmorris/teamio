@@ -14,7 +14,7 @@ export const config = {
 
   // Test accounts
   users: {
-    admin: { email: 'admin@teamio.local', password: 'password123' },
+    admin: { email: 'sysadmin@getteamio.com', password: 'password123' },
     coach: { email: 'coach.smith@teamio.local', password: 'password123' },
     parent: { email: 'parent.jones@teamio.local', password: 'password123' },
   },

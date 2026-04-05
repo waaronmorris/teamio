@@ -51,7 +51,7 @@ interface UserProfile {
 
 const USERS: UserProfile[] = [
   // Admins
-  { distinct_id: 'a0000001-0000-0000-0000-000000000001', email: 'admin@teamio.local', name: 'Admin User', role: 'admin', org_id: 'b0000001-0000-0000-0000-000000000001', org_name: 'Riverside Parks & Recreation', org_type: 'parks_rec', sport: 'soccer', competition_level: 'recreational', city: 'Riverside', state: 'CA', zip_code: '92501', teams_count: 0, signup_source: 'direct', platform: 'web' },
+  { distinct_id: 'a0000001-0000-0000-0000-000000000001', email: 'sysadmin@getteamio.com', name: 'System Admin', role: 'admin', org_id: 'b0000001-0000-0000-0000-000000000001', org_name: 'Riverside Parks & Recreation', org_type: 'parks_rec', sport: 'soccer', competition_level: 'recreational', city: 'Riverside', state: 'CA', zip_code: '92501', teams_count: 0, signup_source: 'direct', platform: 'web' },
   // Commissioners
   { distinct_id: 'a0000002-0000-0000-0000-000000000001', email: 'commissioner@teamio.local', name: 'League Commissioner', role: 'commissioner', org_id: 'b0000001-0000-0000-0000-000000000001', org_name: 'Riverside Parks & Recreation', org_type: 'parks_rec', sport: 'soccer', competition_level: 'recreational', city: 'Riverside', state: 'CA', zip_code: '92501', teams_count: 8, signup_source: 'direct', platform: 'web' },
   { distinct_id: 'a0000003-0000-0000-0000-000000000001', email: 'commissioner.valley@teamio.local', name: 'Carlos Rivera', role: 'commissioner', org_id: 'b0000002-0000-0000-0000-000000000001', org_name: 'Valley Select Baseball', org_type: 'travel_team', sport: 'baseball', competition_level: 'competitive', city: 'Hillcrest', state: 'CA', zip_code: '92506', teams_count: 4, signup_source: 'partner', platform: 'web' },

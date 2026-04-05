@@ -26,8 +26,8 @@
 -- USERS (password is 'password123' hashed with argon2)
 -- ============================================================================
 INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at) VALUES
--- Admin user
-('a0000001-0000-0000-0000-000000000001', 'admin@teamio.local', '$argon2id$v=19$m=19456,t=2,p=1$PuvgXS+7WnX9hTsGPhjfhQ$/pxhEjh9AAacX1zCyBq4C6aVN18dajrmCN2U+3K5+gM', 'Admin', 'User', '555-0100', 'admin', true, NOW(), NOW()),
+-- System admin user
+('a0000001-0000-0000-0000-000000000001', 'sysadmin@getteamio.com', '$argon2id$v=19$m=19456,t=2,p=1$PuvgXS+7WnX9hTsGPhjfhQ$/pxhEjh9AAacX1zCyBq4C6aVN18dajrmCN2U+3K5+gM', 'System', 'Admin', '555-0100', 'admin', true, NOW(), NOW()),
 -- Commissioner (Riverside)
 ('a0000002-0000-0000-0000-000000000001', 'commissioner@teamio.local', '$argon2id$v=19$m=19456,t=2,p=1$PuvgXS+7WnX9hTsGPhjfhQ$/pxhEjh9AAacX1zCyBq4C6aVN18dajrmCN2U+3K5+gM', 'League', 'Commissioner', '555-0101', 'commissioner', true, NOW(), NOW()),
 -- Coaches (Riverside)
@@ -531,7 +531,7 @@ BEGIN
     RAISE NOTICE 'TeamIO Seed Data Loaded Successfully!';
     RAISE NOTICE '==========================================';
     RAISE NOTICE 'Test Accounts (password: password123):';
-    RAISE NOTICE '  - admin@teamio.local (Admin)';
+    RAISE NOTICE '  - sysadmin@getteamio.com (System Admin)';
     RAISE NOTICE '  - commissioner@teamio.local (Commissioner - Riverside)';
     RAISE NOTICE '  - commissioner.valley@teamio.local (Commissioner - Valley Select)';
     RAISE NOTICE '  - commissioner.tournament@teamio.local (Commissioner - Tournament Org)';
