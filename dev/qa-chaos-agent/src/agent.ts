@@ -5,6 +5,7 @@ import { FormFuzzer } from './form-fuzzer.js';
 import { Reporter } from './reporter.js';
 import { AiAnalyzer } from './ai-analyzer.js';
 import { PostHogCollector } from './posthog-collector.js';
+import { FlowTester } from './flow-tester.js';
 
 const BANNER = `
 ╔═══════════════════════════════════════════╗
@@ -87,6 +88,10 @@ async function runCycle(
     `${config.baseUrl}/dashboard/seasons`,
     `${config.baseUrl}/dashboard/organizations`,
     `${config.baseUrl}/dashboard/payments`,
+    `${config.baseUrl}/dashboard/coach`,
+    `${config.baseUrl}/dashboard/tryouts`,
+    `${config.baseUrl}/dashboard/offers`,
+    `${config.baseUrl}/dashboard/parent`,
   ] : [];
 
   const crawler = new Crawler(page, reporter);
@@ -189,6 +194,12 @@ async function runCycle(
   }
 
   console.log(`  Chaos clicks complete`);
+
+  // Phase 4: Test critical user flows
+  console.log(`\n🧪 Phase 4: Testing user flows`);
+  const flowTester = new FlowTester(page, reporter);
+  await flowTester.runAll();
+  console.log(`  Tested ${flowTester.flowsTested} flows`);
 }
 
 async function main() {
