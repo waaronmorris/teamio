@@ -32,6 +32,13 @@ export class FlowTester {
     await this.testCoachTryoutFlow();
     await this.testParentOfferFlow();
     await this.testRoleBasedNavigation();
+    await this.testAnnouncementsFlow();
+    await this.testMessagingFlow();
+    await this.testBroadcastFlow();
+    await this.testAdminDashboardFlow();
+    await this.testCoachFullJourney();
+    await this.testParentFullJourney();
+    await this.testFeatureFlagGating();
   }
 
   // =========================================================================
@@ -1112,6 +1119,651 @@ export class FlowTester {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`    ⚠️  ${flow}: ${msg.slice(0, 100)}`);
+    }
+  }
+
+  // =========================================================================
+  // Flow 12: Announcements (admin creates → all users see banner)
+  // =========================================================================
+  private async testAnnouncementsFlow() {
+    const flow = 'announcements-e2e';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      // Login as admin
+      const adminRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.admin.email, password: config.users.admin.password },
+      });
+      if (!adminRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (admin login failed)`); return; }
+      const adminData = await adminRes.json() as any;
+      const adminHeaders = { Authorization: `Bearer ${adminData.access_token}` };
+
+      // Create an announcement via API
+      const testId = Math.random().toString(36).slice(2, 8);
+      const createRes = await this.page.request.post(`${apiUrl}/api/system-admin/announcements`, {
+        headers: adminHeaders,
+        data: { title: `QA Test Announcement ${testId}`, message: 'This is a chaos agent test announcement', variant: 'info' },
+      });
+
+      if (!createRes.ok()) {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: `Failed to create announcement (${createRes.status()})`,
+          description: 'Admin could not create an announcement via /system-admin/announcements',
+          url: `${apiUrl}/api/system-admin/announcements`,
+        });
+        return;
+      }
+      const announcement = await createRes.json() as any;
+      console.log(`      📋 Created announcement: "${announcement.title || testId}"`);
+
+      // Verify it shows in active announcements (public endpoint)
+      const activeRes = await this.page.request.get(`${apiUrl}/api/announcements/active`);
+      if (activeRes.ok()) {
+        const active = await activeRes.json() as any[];
+        const found = active.some((a: any) => a.title?.includes(testId));
+        if (!found) {
+          this.reporter.addBug({
+            severity: 'error',
+            category: 'flow-test',
+            title: 'Created announcement not in active list',
+            description: `Announcement "${testId}" was created but not returned by /announcements/active`,
+            url: `${apiUrl}/api/announcements/active`,
+          });
+        } else {
+          console.log(`      📋 Announcement visible in active list`);
+        }
+      }
+
+      // Login as coach and verify announcement banner renders
+      const coachRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.coach.email, password: config.users.coach.password },
+      });
+      if (coachRes.ok()) {
+        const coachData = await coachRes.json() as any;
+        await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+        await this.page.evaluate((t: any) => {
+          localStorage.setItem('access_token', t.access_token);
+          localStorage.setItem('refresh_token', t.refresh_token);
+        }, coachData);
+        await this.page.goto(`${config.baseUrl}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 });
+
+        const banner = this.page.locator(`text=QA Test Announcement ${testId}`);
+        if (await banner.isVisible({ timeout: 5000 })) {
+          console.log(`      📋 Coach sees announcement banner`);
+        } else {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: 'Announcement banner not visible to coach',
+            description: 'Created announcement should appear as a banner on the dashboard',
+            url: this.page.url(),
+          });
+        }
+        await this.page.evaluate(() => { localStorage.clear(); });
+      }
+
+      // Clean up: delete the announcement
+      if (announcement.id) {
+        await this.page.request.delete(`${apiUrl}/api/system-admin/announcements/${announcement.id}`, { headers: adminHeaders });
+      }
+
+      console.log(`    ✅ ${flow}: create → visible to users → cleanup`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Announcements flow crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 13: Messaging (send message, check inbox, conversations)
+  // =========================================================================
+  private async testMessagingFlow() {
+    const flow = 'messaging-e2e';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      // Login as admin
+      const adminRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.admin.email, password: config.users.admin.password },
+      });
+      if (!adminRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (admin login failed)`); return; }
+      const adminData = await adminRes.json() as any;
+      const adminHeaders = { Authorization: `Bearer ${adminData.access_token}` };
+
+      // Login as coach to get their user ID
+      const coachRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.coach.email, password: config.users.coach.password },
+      });
+      if (!coachRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (coach login failed)`); return; }
+      const coachData = await coachRes.json() as any;
+      const coachHeaders = { Authorization: `Bearer ${coachData.access_token}` };
+      const coachUserId = coachData.user?.id;
+
+      if (!coachUserId) { console.log(`    ⏭️  ${flow}: skipped (no coach user ID)`); return; }
+
+      // Admin sends a message to coach
+      const sendRes = await this.page.request.post(`${apiUrl}/api/messages`, {
+        headers: adminHeaders,
+        data: {
+          recipient_ids: [coachUserId],
+          subject: `QA Test Message ${Date.now()}`,
+          body: 'This is a chaos agent test message',
+          scope_type: 'direct',
+        },
+      });
+
+      if (sendRes.ok()) {
+        console.log(`      📋 Admin sent message to coach`);
+      } else {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: `Failed to send message (${sendRes.status()})`,
+          description: await sendRes.text().then(t => t.slice(0, 200)),
+          url: `${apiUrl}/api/messages`,
+        });
+        return;
+      }
+
+      // Coach checks inbox
+      const inboxRes = await this.page.request.get(`${apiUrl}/api/users/${coachUserId}/inbox`, {
+        headers: coachHeaders,
+      });
+      if (inboxRes.ok()) {
+        const inbox = await inboxRes.json() as any;
+        const messages = Array.isArray(inbox) ? inbox : inbox.messages || [];
+        console.log(`      📋 Coach inbox has ${messages.length} message(s)`);
+        if (messages.length === 0) {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: 'Coach inbox empty after admin sent message',
+            description: 'Expected at least one message in coach inbox after admin sent a direct message',
+            url: `${apiUrl}/api/users/${coachUserId}/inbox`,
+          });
+        }
+      } else {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: `Coach inbox endpoint failed (${inboxRes.status()})`,
+          description: 'GET /users/:id/inbox returned an error',
+          url: `${apiUrl}/api/users/${coachUserId}/inbox`,
+        });
+      }
+
+      // Coach checks conversations
+      const convRes = await this.page.request.get(`${apiUrl}/api/users/${coachUserId}/conversations`, {
+        headers: coachHeaders,
+      });
+      if (convRes.ok()) {
+        const convs = await convRes.json() as any;
+        const list = Array.isArray(convs) ? convs : convs.conversations || [];
+        console.log(`      📋 Coach has ${list.length} conversation(s)`);
+      }
+
+      // Navigate to messages page as coach
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, coachData);
+      await this.page.goto(`${config.baseUrl}/dashboard/messages`, { waitUntil: 'networkidle', timeout: 15000 });
+
+      const messagesPage = this.page.locator('text=Messages');
+      if (!await messagesPage.isVisible({ timeout: 5000 })) {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: 'Messages page did not render for coach',
+          description: '/dashboard/messages should show the messaging interface',
+          url: this.page.url(),
+        });
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: send → inbox → conversations → UI verified`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Messaging flow crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 14: Broadcast (admin sends weather/schedule broadcast)
+  // =========================================================================
+  private async testBroadcastFlow() {
+    const flow = 'broadcast-e2e';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      const adminRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.admin.email, password: config.users.admin.password },
+      });
+      if (!adminRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (admin login failed)`); return; }
+      const adminData = await adminRes.json() as any;
+      const adminHeaders = { Authorization: `Bearer ${adminData.access_token}` };
+
+      // Navigate to broadcasts page
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, adminData);
+      await this.page.goto(`${config.baseUrl}/dashboard/broadcasts`, { waitUntil: 'networkidle', timeout: 15000 });
+
+      // Check broadcasts page renders
+      const broadcastHeader = this.page.locator('text=Broadcasts, text=Communications, text=Send Broadcast');
+      if (await broadcastHeader.first().isVisible({ timeout: 5000 })) {
+        console.log(`      📋 Broadcasts page renders`);
+      } else {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: 'Broadcasts page did not render',
+          description: '/dashboard/broadcasts should show the broadcast interface for admins',
+          url: this.page.url(),
+        });
+      }
+
+      // Test system-admin broadcast API
+      const broadcastRes = await this.page.request.post(`${apiUrl}/api/system-admin/broadcast`, {
+        headers: adminHeaders,
+        data: {
+          subject: `QA Broadcast Test ${Date.now()}`,
+          body_html: '<p>Chaos agent broadcast test - please ignore</p>',
+        },
+      });
+
+      if (broadcastRes.ok()) {
+        console.log(`      📋 System broadcast sent successfully`);
+      } else {
+        const status = broadcastRes.status();
+        // 403 is expected if not a sys-admin email domain
+        if (status === 403) {
+          console.log(`      📋 Broadcast correctly requires sys-admin (403)`);
+        } else {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: `Broadcast API returned ${status}`,
+            description: await broadcastRes.text().then(t => t.slice(0, 200)),
+            url: `${apiUrl}/api/system-admin/broadcast`,
+          });
+        }
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: broadcast page + API verified`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Broadcast flow crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 15: Admin dashboard (stats, email queue, audit log)
+  // =========================================================================
+  private async testAdminDashboardFlow() {
+    const flow = 'admin-dashboard-e2e';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      const adminRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.admin.email, password: config.users.admin.password },
+      });
+      if (!adminRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (admin login failed)`); return; }
+      const adminData = await adminRes.json() as any;
+      const adminHeaders = { Authorization: `Bearer ${adminData.access_token}` };
+
+      // Test key admin API endpoints
+      const endpoints = [
+        { path: '/api/system-admin/stats', name: 'Dashboard stats' },
+        { path: '/api/system-admin/email-queue/stats', name: 'Email queue stats' },
+        { path: '/api/system-admin/audit-log', name: 'Audit log' },
+        { path: '/api/system-admin/feature-flags', name: 'Feature flags' },
+        { path: '/api/system-admin/feature-flag-registry', name: 'Flag registry' },
+        { path: '/api/system-admin/announcements', name: 'Announcements' },
+        { path: '/api/system-admin/organizations', name: 'Organizations list' },
+        { path: '/api/system-admin/users', name: 'Users list' },
+      ];
+
+      for (const ep of endpoints) {
+        const res = await this.page.request.get(`${apiUrl}${ep.path}`, { headers: adminHeaders });
+        if (res.ok()) {
+          console.log(`      📋 ${ep.name}: OK`);
+        } else {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: `Admin endpoint ${ep.name} failed (${res.status()})`,
+            description: `GET ${ep.path} returned ${res.status()}`,
+            url: `${apiUrl}${ep.path}`,
+          });
+        }
+      }
+
+      // Navigate to sys-admin pages
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, adminData);
+
+      const sysAdminPages = [
+        { path: '/system-admin', check: 'System Admin' },
+        { path: '/system-admin/feature-flags', check: 'Feature Flags' },
+        { path: '/system-admin/organizations', check: 'Organizations' },
+      ];
+
+      for (const page of sysAdminPages) {
+        await this.page.goto(`${config.baseUrl}${page.path}`, { waitUntil: 'networkidle', timeout: 15000 });
+        const heading = this.page.locator(`text=${page.check}`);
+        if (await heading.first().isVisible({ timeout: 5000 })) {
+          console.log(`      📋 ${page.path}: renders`);
+        } else {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: `Sys admin page ${page.path} did not render`,
+            description: `Expected to see "${page.check}" heading`,
+            url: this.page.url(),
+          });
+        }
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: admin APIs + sys-admin pages verified`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Admin dashboard flow crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 16: Coach full journey (portal → schedule → roster → stats)
+  // =========================================================================
+  private async testCoachFullJourney() {
+    const flow = 'coach-full-journey';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      const coachRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.coach.email, password: config.users.coach.password },
+      });
+      if (!coachRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (coach login failed)`); return; }
+      const coachData = await coachRes.json() as any;
+
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, coachData);
+
+      // Visit each coach page and verify it renders
+      const coachPages = [
+        { path: '/dashboard', check: 'Dashboard' },
+        { path: '/dashboard/coach', check: 'Coach Portal' },
+        { path: '/dashboard/schedule', check: 'Schedule' },
+        { path: '/dashboard/stats', check: 'Stats' },
+        { path: '/dashboard/messages', check: 'Messages' },
+        { path: '/dashboard/find-opponents', check: 'Find Opponents' },
+      ];
+
+      for (const pg of coachPages) {
+        await this.page.goto(`${config.baseUrl}${pg.path}`, { waitUntil: 'networkidle', timeout: 15000 });
+        // Check page doesn't crash (blank body)
+        const body = await this.page.locator('body').textContent().catch(() => '');
+        if (!body || body.trim().length < 10) {
+          this.reporter.addBug({
+            severity: 'error',
+            category: 'flow-test',
+            title: `Coach page ${pg.path} rendered blank`,
+            description: `Page body is empty or near-empty`,
+            url: this.page.url(),
+          });
+        } else {
+          console.log(`      📋 ${pg.path}: renders (${body.length} chars)`);
+        }
+      }
+
+      // Coach should NOT be able to access admin pages
+      await this.page.goto(`${config.baseUrl}/system-admin`, { waitUntil: 'networkidle', timeout: 10000 });
+      const sysAdminVisible = await this.page.locator('text=System Administration').isVisible({ timeout: 3000 });
+      if (sysAdminVisible) {
+        this.reporter.addBug({
+          severity: 'error',
+          category: 'flow-test',
+          title: 'Coach can access system admin page',
+          description: '/system-admin should redirect non-admin users away',
+          url: this.page.url(),
+        });
+      } else {
+        console.log(`      📋 Coach correctly redirected from /system-admin`);
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: coach pages render, admin access blocked`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Coach journey crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 17: Parent full journey (portal → schedule → registration)
+  // =========================================================================
+  private async testParentFullJourney() {
+    const flow = 'parent-full-journey';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      const parentRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.parent.email, password: config.users.parent.password },
+      });
+      if (!parentRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (parent login failed)`); return; }
+      const parentData = await parentRes.json() as any;
+
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, parentData);
+
+      // Visit parent pages
+      const parentPages = [
+        { path: '/dashboard/parent', check: 'My Players' },
+        { path: '/dashboard/schedule', check: 'Schedule' },
+        { path: '/dashboard/messages', check: 'Messages' },
+      ];
+
+      for (const pg of parentPages) {
+        await this.page.goto(`${config.baseUrl}${pg.path}`, { waitUntil: 'networkidle', timeout: 15000 });
+        const body = await this.page.locator('body').textContent().catch(() => '');
+        if (!body || body.trim().length < 10) {
+          this.reporter.addBug({
+            severity: 'error',
+            category: 'flow-test',
+            title: `Parent page ${pg.path} rendered blank`,
+            description: 'Page body is empty or near-empty',
+            url: this.page.url(),
+          });
+        } else {
+          console.log(`      📋 ${pg.path}: renders (${body.length} chars)`);
+        }
+      }
+
+      // Parent should NOT see league management
+      await this.page.goto(`${config.baseUrl}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 });
+      const leagueMgmt = this.page.locator('text=League Management');
+      if (await leagueMgmt.isVisible({ timeout: 1000 })) {
+        this.reporter.addBug({
+          severity: 'error',
+          category: 'flow-test',
+          title: 'Parent sees "League Management" in navigation',
+          description: 'Parents should only see "My Family" section, not admin navigation',
+          url: this.page.url(),
+        });
+      }
+
+      // Parent should NOT see Generate Schedule
+      await this.page.goto(`${config.baseUrl}/dashboard/schedule`, { waitUntil: 'networkidle', timeout: 15000 });
+      const generateBtn = this.page.locator('button:has-text("Generate Schedule")');
+      if (await generateBtn.isVisible({ timeout: 2000 })) {
+        this.reporter.addBug({
+          severity: 'error',
+          category: 'flow-test',
+          title: 'Parent sees "Generate Schedule" button',
+          description: 'Schedule generation should not be visible to parent users',
+          url: this.page.url(),
+        });
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: parent pages render, admin controls hidden`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Parent journey crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
+    }
+  }
+
+  // =========================================================================
+  // Flow 18: Feature flag gating verification
+  // =========================================================================
+  private async testFeatureFlagGating() {
+    const flow = 'feature-flag-gating';
+    console.log(`    🧪 Testing: ${flow}`);
+    this.flowCount++;
+
+    try {
+      const apiUrl = config.apiUrl || config.baseUrl;
+
+      const adminRes = await this.page.request.post(`${apiUrl}/api/auth/login`, {
+        data: { email: config.users.admin.email, password: config.users.admin.password },
+      });
+      if (!adminRes.ok()) { console.log(`    ⏭️  ${flow}: skipped (admin login failed)`); return; }
+      const adminData = await adminRes.json() as any;
+      const adminHeaders = { Authorization: `Bearer ${adminData.access_token}` };
+
+      // Fetch the feature flag registry
+      const registryRes = await this.page.request.get(`${apiUrl}/api/system-admin/feature-flag-registry`, {
+        headers: adminHeaders,
+      });
+
+      if (!registryRes.ok()) {
+        this.reporter.addBug({
+          severity: 'error',
+          category: 'flow-test',
+          title: `Feature flag registry endpoint failed (${registryRes.status()})`,
+          description: 'GET /system-admin/feature-flag-registry should return the flag catalog',
+          url: `${apiUrl}/api/system-admin/feature-flag-registry`,
+        });
+        return;
+      }
+
+      const registry = await registryRes.json() as any[];
+      console.log(`      📋 Registry has ${registry.length} flags`);
+
+      // Verify expected flags exist
+      const expectedFlags = ['direct_join', 'tryout_system', 'roster_rollover', 'open_tryout_discovery'];
+      for (const flag of expectedFlags) {
+        const found = registry.some((f: any) => f.key === flag);
+        if (!found) {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: `Expected feature flag "${flag}" not in registry`,
+            description: `The flag "${flag}" should be in the feature flag registry`,
+            url: `${apiUrl}/api/system-admin/feature-flag-registry`,
+          });
+        }
+      }
+
+      // Verify scopes
+      const systemFlags = registry.filter((f: any) => f.scope === 'system');
+      const orgFlags = registry.filter((f: any) => f.scope === 'organization');
+      console.log(`      📋 System flags: ${systemFlags.length}, Organization flags: ${orgFlags.length}`);
+
+      if (systemFlags.length === 0) {
+        this.reporter.addBug({
+          severity: 'warning',
+          category: 'flow-test',
+          title: 'No system-scope flags in registry',
+          description: 'Expected at least one system-scope feature flag',
+          url: `${apiUrl}/api/system-admin/feature-flag-registry`,
+        });
+      }
+
+      // Verify flag validation (try to create an unknown flag)
+      const badFlagRes = await this.page.request.post(`${apiUrl}/api/system-admin/feature-flags`, {
+        headers: adminHeaders,
+        data: { flag: 'nonexistent_flag_xyz', enabled: true },
+      });
+      if (badFlagRes.ok()) {
+        this.reporter.addBug({
+          severity: 'error',
+          category: 'flow-test',
+          title: 'Unknown feature flag accepted by API',
+          description: 'Creating a flag with an unknown name should be rejected with a 400 error',
+          url: `${apiUrl}/api/system-admin/feature-flags`,
+        });
+      } else if (badFlagRes.status() === 400) {
+        console.log(`      📋 Unknown flag correctly rejected (400)`);
+      }
+
+      // Navigate to feature flags page
+      await this.page.goto(config.baseUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.page.evaluate((t: any) => {
+        localStorage.setItem('access_token', t.access_token);
+        localStorage.setItem('refresh_token', t.refresh_token);
+      }, adminData);
+      await this.page.goto(`${config.baseUrl}/system-admin/feature-flags`, { waitUntil: 'networkidle', timeout: 15000 });
+
+      const flagsHeader = this.page.locator('text=Feature Flags');
+      if (await flagsHeader.first().isVisible({ timeout: 5000 })) {
+        // Check for tabs
+        const systemTab = this.page.locator('text=System');
+        const orgTab = this.page.locator('text=Organization Overrides');
+        const hasSystemTab = await systemTab.first().isVisible({ timeout: 2000 });
+        const hasOrgTab = await orgTab.first().isVisible({ timeout: 2000 });
+        console.log(`      📋 Tabs: System=${hasSystemTab}, Org Overrides=${hasOrgTab}`);
+
+        if (!hasSystemTab || !hasOrgTab) {
+          this.reporter.addBug({
+            severity: 'warning',
+            category: 'flow-test',
+            title: 'Feature flags page missing expected tabs',
+            description: 'Should have "System" and "Organization Overrides" tabs',
+            url: this.page.url(),
+          });
+        }
+      }
+
+      await this.page.evaluate(() => { localStorage.clear(); });
+      console.log(`    ✅ ${flow}: registry, validation, and UI verified`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.reporter.addBug({ severity: 'error', category: 'flow-test', title: `Feature flag gating crashed: ${msg.slice(0, 80)}`, description: msg, url: this.page.url() });
     }
   }
 }
